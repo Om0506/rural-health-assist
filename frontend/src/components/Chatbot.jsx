@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
+import { flagAPI } from '../services/api';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function Chatbot({ userId }) {
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState([
     {
-      text: "Hello! I'm your health assistant. I can help with common symptoms like fever, cough, headache, and dehydration. How can I help you today?",
+      text: t('Chatbot greeting'),
       sender: 'bot',
       time: new Date().toLocaleTimeString()
     }
@@ -19,6 +22,23 @@ function Chatbot({ userId }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Update greeting message when language changes
+  useEffect(() => {
+    setMessages(prev => {
+      if (prev.length > 0 && prev[0].sender === 'bot') {
+        return [
+          {
+            text: t('Chatbot greeting'),
+            sender: 'bot',
+            time: new Date().toLocaleTimeString()
+          },
+          ...prev.slice(1)
+        ];
+      }
+      return prev;
+    });
+  }, [language, t]);
 
   const getBotResponse = (message) => {
     const lowerMsg = message.toLowerCase();
@@ -71,18 +91,18 @@ function Chatbot({ userId }) {
     
     if (lowerMsg.includes('thank')) {
       return {
-        text: "You're welcome! Take care of your health. Feel free to ask if you have more questions.",
+        text: t('Chatbot thank you'),
         severity: 'normal'
       };
     }
     
     return {
-      text: "I can help with fever, cough, headache, and dehydration. Please describe your symptoms, or for other health concerns, please consult with an ASHA worker or doctor.",
+      text: t('Chatbot default response'),
       severity: 'normal'
     };
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage = {
@@ -90,12 +110,13 @@ function Chatbot({ userId }) {
       sender: 'user',
       time: new Date().toLocaleTimeString()
     };
+    const userInput = input;
 
     setMessages([...messages, userMessage]);
     setInput('');
 
-    setTimeout(() => {
-      const botReply = getBotResponse(input);
+    setTimeout(async () => {
+      const botReply = getBotResponse(userInput);
       const botMessage = {
         text: botReply.text,
         sender: 'bot',
@@ -104,13 +125,29 @@ function Chatbot({ userId }) {
       setMessages(prev => [...prev, botMessage]);
 
       if (botReply.severity === 'moderate') {
-        setTimeout(() => {
-          setMessages(prev => [...prev, {
-            text: "Note: This case has been flagged for ASHA worker review due to moderate severity.",
-            sender: 'system',
-            time: new Date().toLocaleTimeString()
-          }]);
-        }, 500);
+        try {
+          await flagAPI.flagCase(userId, {
+            reason: `Chatbot escalation: ${userInput}`,
+            severity: 'moderate'
+          });
+          
+          setTimeout(() => {
+            setMessages(prev => [...prev, {
+              text: t('Case flagged message'),
+              sender: 'system',
+              time: new Date().toLocaleTimeString()
+            }]);
+          }, 500);
+        } catch (error) {
+          console.error('Error flagging case:', error);
+          setTimeout(() => {
+            setMessages(prev => [...prev, {
+              text: t('Unable to flag message'),
+              sender: 'system',
+              time: new Date().toLocaleTimeString()
+            }]);
+          }, 500);
+        }
       }
     }, 1000);
   };
@@ -126,8 +163,8 @@ function Chatbot({ userId }) {
       <div className="bg-primary text-white p-4 flex items-center space-x-2">
         <FaRobot className="text-2xl" />
         <div>
-          <h3 className="font-bold">Health Assistant</h3>
-          <p className="text-xs text-green-100">Online - Ask me anything</p>
+          <h3 className="font-bold">{t('Health Assistant')}</h3>
+          <p className="text-xs text-green-100">{t('Online - Ask me anything')}</p>
         </div>
       </div>
 
@@ -185,7 +222,7 @@ function Chatbot({ userId }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your symptoms..."
+            placeholder={t('Type your symptoms...')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button

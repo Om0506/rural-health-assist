@@ -3,12 +3,15 @@ import { healthAPI } from '../services/api';
 import Chatbot from '../components/Chatbot';
 import QRCard from '../components/QRCard';
 import NotificationPanel from '../components/NotificationPanel';
+import VillagerProfileForm from '../components/VillagerProfileForm';
 import { FaHeartbeat, FaCalendar } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function VillagerDashboard({ userProfile }) {
   const [healthRecords, setHealthRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('chatbot');
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (userProfile) {
@@ -36,12 +39,22 @@ function VillagerDashboard({ userProfile }) {
       <div className="container mx-auto max-w-7xl">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-            Welcome, {userProfile.name}!
+            {t('Welcome')}, {userProfile.name}!
           </h1>
-          <p className="text-gray-600">Manage your health records and get instant health advice</p>
+          <p className="text-gray-600">{t('Manage your health records and get instant health advice')}</p>
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              activeTab === 'profile'
+                ? 'bg-primary text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            {t('My Profile')}
+          </button>
           <button
             onClick={() => setActiveTab('chatbot')}
             className={`px-4 py-2 rounded-lg font-semibold transition ${
@@ -50,7 +63,7 @@ function VillagerDashboard({ userProfile }) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            AI Chatbot
+            {t('AI Chatbot')}
           </button>
           <button
             onClick={() => setActiveTab('records')}
@@ -60,7 +73,7 @@ function VillagerDashboard({ userProfile }) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Health Records
+            {t('Health Records')}
           </button>
           <button
             onClick={() => setActiveTab('qr')}
@@ -70,7 +83,7 @@ function VillagerDashboard({ userProfile }) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            QR Health Card
+            {t('QR Health Card')}
           </button>
           <button
             onClick={() => setActiveTab('notifications')}
@@ -80,14 +93,18 @@ function VillagerDashboard({ userProfile }) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Notifications
+            {t('Notifications')}
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
+            {activeTab === 'profile' && (
+              <VillagerProfileForm userProfile={userProfile} />
+            )}
+
             {activeTab === 'chatbot' && (
-              <div className="h-[600px]">
+              <div className="h-[410px]">
                 <Chatbot userId={userProfile.id} />
               </div>
             )}
@@ -96,17 +113,17 @@ function VillagerDashboard({ userProfile }) {
               <div className="card">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center space-x-2">
                   <FaHeartbeat className="text-primary" />
-                  <span>My Health Records</span>
+                  <span>{t('My Health Records')}</span>
                 </h2>
 
                 {loading ? (
-                  <p className="text-gray-500">Loading records...</p>
+                  <p className="text-gray-500">{t('Loading records...')}</p>
                 ) : healthRecords.length === 0 ? (
                   <div className="text-center py-12">
                     <FaHeartbeat className="text-6xl text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">No health records yet</p>
+                    <p className="text-gray-500 text-lg">{t('No health records yet')}</p>
                     <p className="text-gray-400 text-sm mt-2">
-                      Your ASHA worker will add records after your health checkup
+                      {t('Your ASHA worker will add records after your health checkup')}
                     </p>
                   </div>
                 ) : (
@@ -124,29 +141,29 @@ function VillagerDashboard({ userProfile }) {
 
                         {record.vitals && (
                           <div className="mb-3">
-                            <h4 className="font-semibold text-gray-700 mb-2">Vitals:</h4>
+                            <h4 className="font-semibold text-gray-700 mb-2">{t('Vitals')}:</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {record.vitals.temperature && (
                                 <div className="bg-white p-2 rounded">
-                                  <p className="text-xs text-gray-500">Temperature</p>
+                                  <p className="text-xs text-gray-500">{t('Temperature')}</p>
                                   <p className="font-bold text-primary">{record.vitals.temperature}°F</p>
                                 </div>
                               )}
                               {record.vitals.blood_pressure && (
                                 <div className="bg-white p-2 rounded">
-                                  <p className="text-xs text-gray-500">BP</p>
+                                  <p className="text-xs text-gray-500">{t('BP')}</p>
                                   <p className="font-bold text-secondary">{record.vitals.blood_pressure}</p>
                                 </div>
                               )}
                               {record.vitals.pulse && (
                                 <div className="bg-white p-2 rounded">
-                                  <p className="text-xs text-gray-500">Pulse</p>
+                                  <p className="text-xs text-gray-500">{t('Pulse')}</p>
                                   <p className="font-bold text-accent">{record.vitals.pulse} bpm</p>
                                 </div>
                               )}
                               {record.vitals.weight && (
                                 <div className="bg-white p-2 rounded">
-                                  <p className="text-xs text-gray-500">Weight</p>
+                                  <p className="text-xs text-gray-500">{t('Weight')}</p>
                                   <p className="font-bold text-green-600">{record.vitals.weight} kg</p>
                                 </div>
                               )}
@@ -156,7 +173,7 @@ function VillagerDashboard({ userProfile }) {
 
                         {record.notes && (
                           <div className="bg-white p-3 rounded">
-                            <h4 className="font-semibold text-gray-700 mb-1">Notes:</h4>
+                            <h4 className="font-semibold text-gray-700 mb-1">{t('Notes')}:</h4>
                             <p className="text-gray-600 text-sm">{record.notes}</p>
                           </div>
                         )}
@@ -178,41 +195,41 @@ function VillagerDashboard({ userProfile }) {
 
           <div className="space-y-6">
             <div className="card bg-gradient-to-br from-primary to-green-600 text-white">
-              <h3 className="text-xl font-bold mb-3">Quick Stats</h3>
+              <h3 className="text-xl font-bold mb-3">{t('Quick Stats')}</h3>
               <div className="space-y-3">
                 <div className="bg-white bg-opacity-20 p-3 rounded">
-                  <p className="text-sm text-green-100">Total Records</p>
+                  <p className="text-sm text-green-100">{t('Total Records')}</p>
                   <p className="text-3xl font-bold">{healthRecords.length}</p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-3 rounded">
-                  <p className="text-sm text-green-100">Account Status</p>
-                  <p className="text-lg font-semibold">Active</p>
+                  <p className="text-sm text-green-100">{t('Account Status')}</p>
+                  <p className="text-lg font-semibold">{t('Active')}</p>
                 </div>
               </div>
             </div>
 
             <div className="card">
-              <h3 className="text-xl font-bold mb-3 text-gray-800">Health Tips</h3>
+              <h3 className="text-xl font-bold mb-3 text-gray-800">{t('Health Tips')}</h3>
               <ul className="space-y-3 text-sm text-gray-700">
                 <li className="flex items-start">
                   <span className="text-primary mr-2">•</span>
-                  <span>Drink at least 8 glasses of water daily</span>
+                  <span>{t('Drink at least 8 glasses of water daily')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-primary mr-2">•</span>
-                  <span>Get 7-8 hours of sleep every night</span>
+                  <span>{t('Get 7-8 hours of sleep every night')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-primary mr-2">•</span>
-                  <span>Eat fresh fruits and vegetables</span>
+                  <span>{t('Eat fresh fruits and vegetables')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-primary mr-2">•</span>
-                  <span>Exercise for 30 minutes daily</span>
+                  <span>{t('Exercise for 30 minutes daily')}</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-primary mr-2">•</span>
-                  <span>Wash hands frequently to prevent infections</span>
+                  <span>{t('Wash hands frequently to prevent infections')}</span>
                 </li>
               </ul>
             </div>

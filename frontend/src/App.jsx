@@ -64,9 +64,9 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Navbar user={user} userProfile={userProfile} />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home user={user} userProfile={userProfile} />} />
           <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
+          <Route path="/services" element={<Services user={user} userProfile={userProfile} />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

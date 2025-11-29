@@ -1,12 +1,22 @@
 import express from 'express';
 import { query } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
+import { requireRole, canAccessUserData } from '../middleware/authorization.js';
 
 const router = express.Router();
 
-router.post('/add', authenticateUser, async (req, res) => {
+router.post('/add', authenticateUser, requireRole(['ASHA Worker', 'Doctor']), async (req, res) => {
   try {
     const { userId, vitals, notes } = req.body;
+
+    const userExists = await query(
+      'SELECT id FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
 
     const result = await query(
       'INSERT INTO health_records (user_id, vitals, notes) VALUES ($1, $2, $3) RETURNING *',
@@ -25,7 +35,7 @@ router.post('/add', authenticateUser, async (req, res) => {
   }
 });
 
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', authenticateUser, canAccessUserData, async (req, res) => {
   try {
     const { userId } = req.params;
 

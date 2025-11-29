@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { notificationAPI } from '../services/api';
 import { FaBell, FaCheck } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function NotificationPanel({ userId }) {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,7 @@ function NotificationPanel({ userId }) {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (loading) {
-    return <div className="card">Loading notifications...</div>;
+    return <div className="card">{t('Loading notifications...')}</div>;
   }
 
   return (
@@ -43,17 +45,17 @@ function NotificationPanel({ userId }) {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-2xl font-bold text-gray-800 flex items-center space-x-2">
           <FaBell className="text-accent" />
-          <span>Notifications</span>
+          <span>{t('Notifications')}</span>
         </h3>
         {unreadCount > 0 && (
           <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            {unreadCount} new
+            {unreadCount} {t('new')}
           </span>
         )}
       </div>
 
       {notifications.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">No notifications yet</p>
+        <p className="text-gray-500 text-center py-8">{t('No notifications yet')}</p>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {notifications.map((notification) => (
@@ -78,7 +80,7 @@ function NotificationPanel({ userId }) {
                   <button
                     onClick={() => markAsRead(notification.id)}
                     className="ml-2 text-primary hover:text-green-600"
-                    title="Mark as read"
+                    title={t('Mark as read')}
                   >
                     <FaCheck />
                   </button>

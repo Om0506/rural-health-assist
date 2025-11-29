@@ -62,6 +62,41 @@ export const initializeDatabase = async () => {
       )
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS villager_profiles (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        full_name VARCHAR(255) NOT NULL,
+        age INTEGER,
+        gender VARCHAR(50),
+        phone VARCHAR(20),
+        address TEXT,
+        village_name VARCHAR(255),
+        emergency_contact VARCHAR(20),
+        family_id VARCHAR(100),
+        height_cm NUMERIC,
+        weight_kg NUMERIC,
+        bp_systolic INTEGER,
+        bp_diastolic INTEGER,
+        heart_rate INTEGER,
+        temperature NUMERIC,
+        blood_sugar NUMERIC,
+        spo2 INTEGER,
+        existing_diseases JSONB,
+        allergies JSONB,
+        past_surgeries TEXT,
+        smoker BOOLEAN,
+        alcohol_consumption VARCHAR(50),
+        activity_level VARCHAR(50),
+        eating_pattern VARCHAR(50),
+        covid_vaccination_status VARCHAR(50),
+        tetanus_vaccine_date DATE,
+        other_vaccinations TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database:', error);

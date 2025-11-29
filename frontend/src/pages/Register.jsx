@@ -4,6 +4,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { userAPI } from '../services/api';
 import { FaUser, FaEnvelope, FaLock, FaPhone, FaUserTag } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,7 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleChange = (e) => {
     setFormData({
@@ -31,12 +33,12 @@ function Register() {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('Passwords do not match'));
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('Password must be at least 6 characters'));
       return;
     }
 
@@ -73,9 +75,9 @@ function Register() {
     } catch (error) {
       console.error('Registration error:', error);
       if (error.code === 'auth/email-already-in-use') {
-        setError('Email already in use. Please use a different email or login.');
+        setError(t('Email already in use. Please use a different email or login.'));
       } else {
-        setError('Registration failed. Please try again.');
+        setError(t('Registration failed. Please try again.'));
       }
     } finally {
       setLoading(false);
@@ -86,10 +88,10 @@ function Register() {
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary to-green-600">
       <div className="card max-w-2xl w-full">
         <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
-          Create Account
+          {t('Create Account')}
         </h1>
         <p className="text-center text-gray-600 mb-8">
-          Join our healthcare community today
+          {t('Join our healthcare community today')}
         </p>
 
         {error && (
@@ -102,7 +104,7 @@ function Register() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="name" className="block text-gray-700 font-semibold mb-2">
-                Full Name *
+                {t('Full Name')} *
               </label>
               <div className="relative">
                 <FaUser className="absolute left-3 top-3 text-gray-400" />
@@ -114,14 +116,14 @@ function Register() {
                   onChange={handleChange}
                   required
                   className="input-field pl-10"
-                  placeholder="Your full name"
+                  placeholder={t('Your full name')}
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">
-                Email Address *
+                {t('Email Address')} *
               </label>
               <div className="relative">
                 <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
@@ -133,7 +135,7 @@ function Register() {
                   onChange={handleChange}
                   required
                   className="input-field pl-10"
-                  placeholder="your.email@example.com"
+                  placeholder={t('your.email@example.com')}
                 />
               </div>
             </div>
@@ -142,7 +144,7 @@ function Register() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="age" className="block text-gray-700 font-semibold mb-2">
-                Age *
+                {t('Age')} *
               </label>
               <input
                 type="number"
@@ -154,13 +156,13 @@ function Register() {
                 min="1"
                 max="120"
                 className="input-field"
-                placeholder="Your age"
+                placeholder={t('Your age')}
               />
             </div>
 
             <div>
               <label htmlFor="phone" className="block text-gray-700 font-semibold mb-2">
-                Phone Number *
+                {t('Phone Number')} *
               </label>
               <div className="relative">
                 <FaPhone className="absolute left-3 top-3 text-gray-400" />
@@ -172,7 +174,7 @@ function Register() {
                   onChange={handleChange}
                   required
                   className="input-field pl-10"
-                  placeholder="Your phone number"
+                  placeholder={t('Your phone number')}
                 />
               </div>
             </div>
@@ -180,7 +182,7 @@ function Register() {
 
           <div>
             <label htmlFor="role" className="block text-gray-700 font-semibold mb-2">
-              Select Your Role *
+              {t('Select Your Role')} *
             </label>
             <div className="relative">
               <FaUserTag className="absolute left-3 top-3 text-gray-400" />
@@ -192,9 +194,9 @@ function Register() {
                 required
                 className="input-field pl-10"
               >
-                <option value="Villager">Villager</option>
-                <option value="ASHA Worker">ASHA Worker</option>
-                <option value="Doctor">Doctor</option>
+                <option value="Villager">{t('Villager')}</option>
+                <option value="ASHA Worker">{t('ASHA Worker')}</option>
+                <option value="Doctor">{t('Doctor')}</option>
               </select>
             </div>
           </div>
@@ -202,7 +204,7 @@ function Register() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">
-                Password *
+                {t('Password')} *
               </label>
               <div className="relative">
                 <FaLock className="absolute left-3 top-3 text-gray-400" />
@@ -214,14 +216,14 @@ function Register() {
                   onChange={handleChange}
                   required
                   className="input-field pl-10"
-                  placeholder="At least 6 characters"
+                  placeholder={t('At least 6 characters')}
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-gray-700 font-semibold mb-2">
-                Confirm Password *
+                {t('Confirm Password')} *
               </label>
               <div className="relative">
                 <FaLock className="absolute left-3 top-3 text-gray-400" />
@@ -233,7 +235,7 @@ function Register() {
                   onChange={handleChange}
                   required
                   className="input-field pl-10"
-                  placeholder="Re-enter password"
+                  placeholder={t('Re-enter password')}
                 />
               </div>
             </div>
@@ -244,15 +246,15 @@ function Register() {
             disabled={loading}
             className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Account...' : 'Register'}
+            {loading ? t('Creating Account...') : t('Register')}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-gray-600">
-            Already have an account?{' '}
+            {t('Already have an account?')}{' '}
             <Link to="/login" className="text-primary font-semibold hover:underline">
-              Login here
+              {t('Login here')}
             </Link>
           </p>
         </div>

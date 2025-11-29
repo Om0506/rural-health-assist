@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { qrAPI } from '../services/api';
 import { FaDownload } from 'react-icons/fa';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function QRCard({ userId, userName }) {
+  const { t } = useLanguage();
   const [qrValue, setQrValue] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +29,7 @@ function QRCard({ userId, userName }) {
       setQrValue(response.data.qrCode);
     } catch (error) {
       console.error('Error generating QR code:', error);
-      alert('Failed to generate QR code');
+      alert(t('Failed to generate QR code'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,7 @@ function QRCard({ userId, userName }) {
 
   return (
     <div className="card text-center">
-      <h3 className="text-2xl font-bold mb-4 text-gray-800">Digital Health Card</h3>
+      <h3 className="text-2xl font-bold mb-4 text-gray-800">{t('Digital Health Card')}</h3>
       
       {qrValue ? (
         <div className="space-y-4">
@@ -70,13 +72,13 @@ function QRCard({ userId, userName }) {
           
           <div className="text-left bg-green-50 p-4 rounded-lg">
             <p className="text-sm text-gray-700 mb-2">
-              <strong>Name:</strong> {userName}
+              <strong>{t('Name:')}</strong> {userName}
             </p>
             <p className="text-sm text-gray-700 mb-2">
-              <strong>User ID:</strong> {userId}
+              <strong>{t('User ID:')}</strong> {userId}
             </p>
             <p className="text-xs text-gray-600">
-              Share this QR code with healthcare providers for quick access to your health information.
+              {t('Share QR message')}
             </p>
           </div>
 
@@ -86,26 +88,26 @@ function QRCard({ userId, userName }) {
               disabled={loading}
               className="btn-secondary flex-1 disabled:opacity-50"
             >
-              {loading ? 'Regenerating...' : 'Regenerate QR'}
+              {loading ? t('Regenerating...') : t('Regenerate QR')}
             </button>
             <button
               onClick={downloadQR}
               className="btn-primary flex-1 flex items-center justify-center space-x-2"
             >
               <FaDownload />
-              <span>Download</span>
+              <span>{t('Download')}</span>
             </button>
           </div>
         </div>
       ) : (
         <div className="py-8">
-          <p className="text-gray-600 mb-4">You don't have a QR code yet</p>
+          <p className="text-gray-600 mb-4">{t("You don't have a QR code yet")}</p>
           <button
             onClick={generateQRCode}
             disabled={loading}
             className="btn-primary disabled:opacity-50"
           >
-            {loading ? 'Generating...' : 'Generate QR Code'}
+            {loading ? t('Generating...') : t('Generate QR Code')}
           </button>
         </div>
       )}

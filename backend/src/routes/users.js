@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../config/database.js';
 import { authenticateUser } from '../middleware/auth.js';
+import { canAccessUserData } from '../middleware/authorization.js';
 
 const router = express.Router();
 
@@ -50,7 +51,7 @@ router.get('/profile', authenticateUser, async (req, res) => {
   }
 });
 
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', authenticateUser, canAccessUserData, async (req, res) => {
   try {
     const { userId } = req.params;
     

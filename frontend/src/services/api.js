@@ -1,7 +1,22 @@
 import axios from 'axios';
 import { auth } from '../utils/firebase';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const resolveApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  const lanHost =
+    import.meta.env.VITE_LAN_IP ||
+    (typeof window !== 'undefined' ? window.location.hostname : 'localhost');
+
+  const port = import.meta.env.VITE_API_PORT || 3000;
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+
+  return `${protocol}//${lanHost}:${port}`;
+};
+
+const API_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: `${API_URL}/api`
@@ -40,6 +55,12 @@ export const qrAPI = {
 export const notificationAPI = {
   get: (userId) => api.get(`/notifications/${userId}`),
   markRead: (notificationId) => api.put(`/notifications/${notificationId}/read`)
+};
+
+export const villagerProfileAPI = {
+  getMine: () => api.get('/villager-profile/me'),
+  getByUser: (userId) => api.get(`/villager-profile/${userId}`),
+  saveMine: (data) => api.put('/villager-profile/me', data)
 };
 
 export default api;

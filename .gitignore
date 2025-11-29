@@ -1,0 +1,24 @@
+# Node modules
+backend/node_modules
+frontend/node_modules
+
+# Environment files
+.env
+backend/.env
+frontend/.env
+
+# Firebase private files
+*.json
+!firebaseConfigPublicExample.json  # (optional)
+
+# Build outputs
+dist
+build
+
+# System files
+.DS_Store
+*.log
+
+# Replit files (optional)
+.replit
+.local
