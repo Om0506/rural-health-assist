@@ -57,6 +57,7 @@ export default function VoiceChatOverlay({
   onClearTranscript,
   onEditTranscript,
   onSendTranscript,
+  onStopSpeaking,
   autoSendEnabled = false,
   onToggleAutoSend,
   t,
@@ -87,6 +88,7 @@ export default function VoiceChatOverlay({
   const fullLiveText = [transcript, interimTranscript].filter(Boolean).join(' ');
 
   const handleStartEditing = () => {
+    onStopSpeaking?.();
     onStopListening?.();
     setEditedText(fullLiveText);
     setIsEditing(true);
@@ -103,6 +105,7 @@ export default function VoiceChatOverlay({
 
     setIsSubmitting(true);
     setIsEditing(false);
+    onStopSpeaking?.();
     onStopListening?.();
 
     // 1. Close voice overlay immediately to restore normal chat window
@@ -170,6 +173,7 @@ export default function VoiceChatOverlay({
             <button
               type="button"
               onClick={() => {
+                onStopSpeaking?.();
                 onStopListening?.();
                 onClose?.();
               }}
@@ -197,7 +201,10 @@ export default function VoiceChatOverlay({
                     <button
                       key={lang.key}
                       type="button"
-                      onClick={() => onLanguageChange(lang.key)}
+                      onClick={() => {
+                        onStopSpeaking?.();
+                        onLanguageChange(lang.key);
+                      }}
                       className={cn(
                         'flex flex-1 max-w-[130px] items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition',
                         isSelected
@@ -237,7 +244,10 @@ export default function VoiceChatOverlay({
                     {error === 'permission-denied' && (
                       <button
                         type="button"
-                        onClick={onStartListening}
+                        onClick={() => {
+                          onStopSpeaking?.();
+                          onStartListening?.();
+                        }}
                         className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-700"
                       >
                         <FaRedo className="h-3 w-3" />
@@ -284,7 +294,14 @@ export default function VoiceChatOverlay({
                 {/* Central Tactile Mic Button */}
                 <button
                   type="button"
-                  onClick={isListening ? onStopListening : onStartListening}
+                  onClick={
+                    isListening
+                      ? onStopListening
+                      : () => {
+                          onStopSpeaking?.();
+                          onStartListening?.();
+                        }
+                  }
                   className={cn(
                     'relative z-10 flex h-24 w-24 items-center justify-center rounded-full text-white shadow-2xl transition-transform active:scale-95',
                     isListening
@@ -449,6 +466,7 @@ export default function VoiceChatOverlay({
                   <button
                     type="button"
                     onClick={() => {
+                      onStopSpeaking?.();
                       onStopListening?.();
                       onClose?.();
                     }}

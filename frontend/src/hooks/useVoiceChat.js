@@ -145,6 +145,8 @@ export function useVoiceChat({
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
   const currentUtterancesRef = useRef([]);
+  const playbackSessionIdRef = useRef(0);
+  const chunkTimeoutRef = useRef(null);
 
   const langCode = LANGUAGE_CODE_MAP[language] || 'en-IN';
 
@@ -171,6 +173,48 @@ export function useVoiceChat({
     }
   }, []);
 
+  // Stop speech synthesis cleanly and cancel any queued chunks/timeouts
+  const stopSpeaking = useCallback(() => {
+    // 1. Invalidate active playback session token
+    playbackSessionIdRef.current += 1;
+
+    // 2. Clear any pending chunk transition timeout
+    if (chunkTimeoutRef.current) {
+      clearTimeout(chunkTimeoutRef.current);
+      chunkTimeoutRef.current = null;
+    }
+
+    // 3. Remove all listeners from tracked utterances before cancelling
+    // to prevent browsers from firing interrupted/canceled error events
+    // that could accidentally trigger subsequent chunks
+    if (currentUtterancesRef.current && currentUtterancesRef.current.length > 0) {
+      currentUtterancesRef.current.forEach((u) => {
+        try {
+          u.onend = null;
+          u.onerror = null;
+          u.onstart = null;
+          u.onpause = null;
+          u.onresume = null;
+        } catch {
+          // ignore
+        }
+      });
+      currentUtterancesRef.current = [];
+    }
+
+    // 4. Cancel active SpeechSynthesis in browser
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {
+        console.warn('speechSynthesis.cancel error:', e);
+      }
+    }
+
+    setIsSpeaking(false);
+    setSpeakingMessageId(null);
+  }, []);
+
   // Sync soundEnabled to localStorage
   const toggleSound = useCallback(() => {
     setSoundEnabled((prev) => {
@@ -180,14 +224,12 @@ export function useVoiceChat({
       } catch {
         // ignore
       }
-      if (!next && typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-        setSpeakingMessageId(null);
+      if (!next) {
+        stopSpeaking();
       }
       return next;
     });
-  }, []);
+  }, [stopSpeaking]);
 
   // Audio level analyzer
   const startAudioAnalysis = async () => {
@@ -243,30 +285,24 @@ export function useVoiceChat({
     setVolumeLevel(0);
   };
 
-  // Stop speech synthesis
-  const stopSpeaking = useCallback(() => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      currentUtterancesRef.current = [];
-      setIsSpeaking(false);
-      setSpeakingMessageId(null);
-    }
-  }, []);
-
-  // Speak assistant response in chunks to prevent browser cutoff / garbling
+  // Speak assistant response in chunks with cancellation tracking
   const speak = useCallback(
     (text, forcedLanguage = null, messageId = null) => {
+      // Immediately stop any prior playback and get a brand new session token
+      stopSpeaking();
+
       if (!soundEnabled || typeof window === 'undefined' || !window.speechSynthesis) {
         return;
       }
 
-      stopSpeaking();
+      const clean = cleanTextForSpeech(text);
+      if (!clean) return;
+
+      // Capture the current playback session token
+      const currentSessionId = playbackSessionIdRef.current;
 
       const targetLang = forcedLanguage || language;
       const targetLangCode = LANGUAGE_CODE_MAP[targetLang] || 'en-IN';
-      const clean = cleanTextForSpeech(text);
-
-      if (!clean) return;
 
       const loadedVoices = voices.length > 0 ? voices : window.speechSynthesis.getVoices() || [];
       const bestVoice = selectBestVoice(loadedVoices, targetLang);
@@ -283,9 +319,17 @@ export function useVoiceChat({
       let chunkIndex = 0;
 
       const speakNextChunk = () => {
+        // Validation check: if session changed or sound disabled or finished
+        if (playbackSessionIdRef.current !== currentSessionId) {
+          return;
+        }
+
         if (!soundEnabled || chunkIndex >= chunks.length) {
-          setIsSpeaking(false);
-          setSpeakingMessageId(null);
+          if (playbackSessionIdRef.current === currentSessionId) {
+            setIsSpeaking(false);
+            setSpeakingMessageId(null);
+            currentUtterancesRef.current = [];
+          }
           return;
         }
 
@@ -302,16 +346,41 @@ export function useVoiceChat({
         utterance.pitch = 1.0;
 
         utterance.onend = () => {
-          speakNextChunk();
+          if (playbackSessionIdRef.current !== currentSessionId) return;
+          chunkTimeoutRef.current = setTimeout(() => {
+            if (playbackSessionIdRef.current === currentSessionId) {
+              speakNextChunk();
+            }
+          }, 30);
         };
 
         utterance.onerror = (e) => {
-          console.warn('Speech synthesis chunk error:', e);
-          speakNextChunk();
+          // If interrupted or canceled, or session token no longer matches, do NOT continue
+          if (
+            playbackSessionIdRef.current !== currentSessionId ||
+            e.error === 'canceled' ||
+            e.error === 'interrupted'
+          ) {
+            return;
+          }
+          console.warn('Speech synthesis chunk error:', e.error);
+          chunkTimeoutRef.current = setTimeout(() => {
+            if (playbackSessionIdRef.current === currentSessionId) {
+              speakNextChunk();
+            }
+          }, 30);
         };
 
         currentUtterancesRef.current = [utterance];
-        window.speechSynthesis.speak(utterance);
+        try {
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn('speechSynthesis.speak error:', err);
+          if (playbackSessionIdRef.current === currentSessionId) {
+            setIsSpeaking(false);
+            setSpeakingMessageId(null);
+          }
+        }
       };
 
       speakNextChunk();
@@ -482,6 +551,33 @@ export function useVoiceChat({
       return () => clearTimeout(timer);
     }
   }, [language]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup & interruption listeners for window/navigation lifecycle
+  useEffect(() => {
+    const handleStop = () => {
+      stopSpeaking();
+    };
+
+    window.addEventListener('beforeunload', handleStop);
+    window.addEventListener('pagehide', handleStop);
+    window.addEventListener('popstate', handleStop);
+    window.addEventListener('hashchange', handleStop);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopSpeaking();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleStop);
+      window.removeEventListener('pagehide', handleStop);
+      window.removeEventListener('popstate', handleStop);
+      window.removeEventListener('hashchange', handleStop);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [stopSpeaking]);
 
   // Cleanup on unmount
   useEffect(() => {

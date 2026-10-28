@@ -179,7 +179,26 @@ function VillagerDashboard({ userProfile, user }) {
     },
   ];
 
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
   const handleTabChange = (id) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
     setActiveTab(id);
     window.history.replaceState(null, '', `#${id}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });

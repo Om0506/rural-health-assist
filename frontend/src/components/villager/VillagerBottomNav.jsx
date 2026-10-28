@@ -20,6 +20,13 @@ export default function VillagerBottomNav({ activeTab, onNavigate, onAsk }) {
   };
 
   const handleClick = (item) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
     if (item.fab) {
       onNavigate('chatbot');
       onAsk?.();

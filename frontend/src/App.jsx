@@ -47,6 +47,16 @@ function AppRoutes({ user, userProfile, loading }) {
   const showNavbar = !isAuthPath(location.pathname) && !isDashboardPath(location.pathname);
   const showAppShell = user && isDashboardPath(location.pathname);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
+  }, [location.pathname]);
+
   const ProtectedRoute = ({ children, allowedRoles }) => {
     if (loading) {
       return <LoadingScreen message="Authenticating..." />;

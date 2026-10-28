@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   FaBars,
   FaCheckCircle,
@@ -121,6 +122,22 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
     },
   });
 
+  const location = useLocation();
+
+  useEffect(() => {
+    stopSpeaking();
+  }, [location.pathname, location.search, location.hash, stopSpeaking]);
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, [stopSpeaking]);
+
+  useEffect(() => {
+    stopSpeaking();
+  }, [selectedLanguage, stopSpeaking]);
+
   useEffect(() => {
     speakRef.current = speak;
   }, [speak]);
@@ -191,6 +208,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
 
   const applySessionData = useCallback(
     (data) => {
+      stopSpeaking();
       setSessionId(data.id);
       setSelectedLanguage(data.language || 'English');
       const dbMessages = (data.messages || []).map(mapApiMessage);
@@ -203,7 +221,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
         data.pending_escalation?.status === 'pending_user_consent' ? data.pending_escalation : null
       );
     },
-    [makeGreeting]
+    [makeGreeting, stopSpeaking]
   );
 
   const buildSummaryFromMemory = (memory, severity) => {
@@ -232,6 +250,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
   const loadSession = useCallback(
     async (id) => {
       if (!userId || !id) return;
+      stopSpeaking();
       try {
         const result = await chatbotAPI.getSession(userId, id);
         applySessionData(result.data);
@@ -240,7 +259,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
         console.error('Failed to load session:', error);
       }
     },
-    [userId, applySessionData]
+    [userId, applySessionData, stopSpeaking]
   );
 
   useEffect(() => {
@@ -281,6 +300,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
 
   const handleStartNewChat = async () => {
     if (!userId) return;
+    stopSpeaking();
     try {
       const result = await chatbotAPI.createSession({
         userId,
@@ -304,6 +324,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
 
   const handleDeleteSession = async () => {
     if (!userId || !deleteConfirm?.id) return;
+    stopSpeaking();
     setDeletingSessionId(deleteConfirm.id);
     setDeleteError('');
     try {
@@ -425,6 +446,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       setMessages((prev) => [...prev, botMessage]);
       await refreshSessions();
 
+      stopSpeaking();
       if (soundEnabledRef.current && speakRef.current) {
         speakRef.current(botReply, messageLanguage, botMessageId);
       }
@@ -453,6 +475,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
 
   const handleEscalationConsent = async (consent) => {
     if (!userId || !sessionId || !escalationRequest) return;
+    stopSpeaking();
     setIsSubmittingConsent(true);
     try {
       const response = await chatbotAPI.submitEscalationConsent({
@@ -653,6 +676,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
             <button
               type="button"
               onClick={() => {
+                stopSpeaking();
                 setIsVoiceOpen(true);
                 startListening();
               }}
@@ -707,6 +731,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
               <button
                 type="button"
                 onClick={() => {
+                  stopSpeaking();
                   setIsVoiceOpen(true);
                   startListening();
                 }}
@@ -821,6 +846,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
                           if (isSpeaking && speakingMessageId === message.id) {
                             stopSpeaking();
                           } else {
+                            stopSpeaking();
                             speak(message.text, selectedLanguage, message.id);
                           }
                         }}
@@ -926,6 +952,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
           <button
             type="button"
             onClick={() => {
+              stopSpeaking();
               setIsVoiceOpen(true);
               if (!isListening) startListening();
             }}
@@ -978,11 +1005,13 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       <VoiceChatOverlay
         isOpen={isVoiceOpen}
         onClose={() => {
+          stopSpeaking();
           setIsVoiceOpen(false);
           stopListening();
         }}
         selectedLanguage={selectedLanguage}
         onLanguageChange={(newLang) => {
+          stopSpeaking();
           setSelectedLanguage(newLang);
         }}
         isListening={isListening}
@@ -992,15 +1021,20 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
         transcript={transcript}
         interimTranscript={interimTranscript}
         error={voiceError}
-        onStartListening={startListening}
+        onStartListening={() => {
+          stopSpeaking();
+          startListening();
+        }}
         onStopListening={stopListening}
         onClearTranscript={clearTranscript}
         onEditTranscript={(newText) => setTranscript(newText)}
         onSendTranscript={(text) => {
+          stopSpeaking();
           setIsVoiceOpen(false);
           handleSend(text);
           clearTranscript();
         }}
+        onStopSpeaking={stopSpeaking}
         autoSendEnabled={autoSendEnabled}
         onToggleAutoSend={setAutoSendEnabled}
         t={t}
