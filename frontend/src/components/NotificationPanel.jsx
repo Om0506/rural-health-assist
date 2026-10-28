@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 import { notificationAPI } from '../services/api';
 import { FaBell, FaCheck } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { CardTitle } from './ui/Card';
+import Badge from './ui/Badge';
+import Button from './ui/Button';
+import EmptyState from './ui/EmptyState';
 
-function NotificationPanel({ userId }) {
+function NotificationPanel({ userId, onUnreadCountChange }) {
   const { t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,10 +16,16 @@ function NotificationPanel({ userId }) {
     loadNotifications();
   }, [userId]);
 
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  useEffect(() => {
+    onUnreadCountChange?.(unreadCount);
+  }, [unreadCount, onUnreadCountChange]);
+
   const loadNotifications = async () => {
     try {
       const response = await notificationAPI.get(userId);
-      setNotifications(response.data);
+      setNotifications(response.data || []);
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
@@ -26,64 +36,54 @@ function NotificationPanel({ userId }) {
   const markAsRead = async (notificationId) => {
     try {
       await notificationAPI.markRead(notificationId);
-      setNotifications(notifications.map(n => 
-        n.id === notificationId ? { ...n, is_read: true } : n
-      ));
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
+      );
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-
   if (loading) {
-    return <div className="card">{t('Loading notifications...')}</div>;
+    return <div className="card text-muted-fg text-sm">{t('Loading notifications...')}</div>;
   }
 
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-2xl font-bold text-gray-800 flex items-center space-x-2">
-          <FaBell className="text-accent" />
-          <span>{t('Notifications')}</span>
-        </h3>
-        {unreadCount > 0 && (
-          <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-            {unreadCount} {t('new')}
-          </span>
-        )}
+    <div id="notifications" className="card scroll-mt-16">
+      <div className="mb-4 flex items-center justify-between">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <FaBell className="text-brand-500" />
+          {t('Notifications')}
+        </CardTitle>
+        {unreadCount > 0 && <Badge variant="danger">{unreadCount} {t('new')}</Badge>}
       </div>
 
       {notifications.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">{t('No notifications yet')}</p>
+        <EmptyState icon={FaBell} title={t('No notifications yet')} />
       ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="max-h-96 space-y-2 overflow-y-auto scrollbar-thin">
           {notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-4 rounded-lg border transition ${
+              className={`rounded-xl border p-3.5 transition ${
                 notification.is_read
-                  ? 'bg-gray-50 border-gray-200'
-                  : 'bg-blue-50 border-blue-200'
+                  ? 'border-default bg-elevated/50'
+                  : 'border-brand-500/20 bg-brand-500/5'
               }`}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <p className={`${notification.is_read ? 'text-gray-600' : 'text-gray-800 font-semibold'}`}>
-                    {notification.message}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm ${notification.is_read ? 'text-fg-secondary' : 'font-medium text-fg'}`}>
+                    {notification.message || notification.title}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(notification.date).toLocaleString()}
+                  <p className="mt-1 text-xs text-muted-fg">
+                    {new Date(notification.created_at || notification.date).toLocaleString()}
                   </p>
                 </div>
                 {!notification.is_read && (
-                  <button
-                    onClick={() => markAsRead(notification.id)}
-                    className="ml-2 text-primary hover:text-green-600"
-                    title={t('Mark as read')}
-                  >
-                    <FaCheck />
-                  </button>
+                  <Button variant="ghost" size="sm" onClick={() => markAsRead(notification.id)} aria-label={t('Mark as read')}>
+                    <FaCheck className="h-3 w-3" />
+                  </Button>
                 )}
               </div>
             </div>

@@ -1,5 +1,10 @@
 import { query } from '../config/database.js';
 
+const normalizeRole = (role = '') => {
+  if (role === 'ASHA Worker') return 'ASHA';
+  return role;
+};
+
 export const requireRole = (allowedRoles) => {
   return async (req, res, next) => {
     try {
@@ -16,9 +21,10 @@ export const requireRole = (allowedRoles) => {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const userRole = result.rows[0].role;
+      const userRole = normalizeRole(result.rows[0].role);
+      const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
 
-      if (!allowedRoles.includes(userRole)) {
+      if (!normalizedAllowedRoles.includes(userRole)) {
         return res.status(403).json({ error: 'Insufficient permissions' });
       }
 
@@ -61,7 +67,8 @@ export const canAccessUserData = async (req, res, next) => {
     req.currentUserId = currentUser.id;
     req.userRole = currentUser.role;
 
-    if (currentUser.role === 'ASHA Worker' || currentUser.role === 'Doctor') {
+    const normalizedRole = normalizeRole(currentUser.role);
+    if (normalizedRole === 'ASHA' || normalizedRole === 'Doctor') {
       return next();
     }
 

@@ -136,6 +136,8 @@ DATABASE_URL=your_neondb_connection_string
 FIREBASE_PROJECT_ID=your_project_id
 FIREBASE_PRIVATE_KEY=your_private_key
 FIREBASE_CLIENT_EMAIL=your_client_email
+GEMINI_API_KEY=your_google_gemini_api_key
+GEMINI_MODEL=gemini-1.5-flash-latest
 ```
 
 3. Install dependencies:
@@ -246,6 +248,9 @@ The database tables will be created automatically when the backend server starts
 ### Notifications
 - `GET /api/notifications/:userId` - Get notifications
 - `PUT /api/notifications/:notificationId/read` - Mark as read
+
+### Chatbot
+- `POST /api/chatbot/message` - AI chatbot response + severity + symptoms
 
 ## Responsive Design
 

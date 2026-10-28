@@ -1,48 +1,44 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import { translate } from '../i18n/translations.js';
+import { createContext, useContext, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n, { LANGUAGE_OPTIONS, STORAGE_KEY } from '../i18n';
 
 const LanguageContext = createContext({
   language: 'en',
   setLanguage: () => {},
-  t: (text) => text
+  t: (key, options) => options?.defaultValue || key,
 });
 
-const STORAGE_KEY = 'rha_language';
-
 export function LanguageProvider({ children }) {
-  const [language, setLanguageState] = useState('en');
+  const { t, i18n: i18next } = useTranslation('common');
+  const language = i18next.resolvedLanguage || i18next.language || 'en';
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'en' || stored === 'hi' || stored === 'mr') {
-        setLanguageState(stored);
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
+    document.documentElement.lang = language;
+    document.documentElement.dir = 'ltr';
+  }, [language]);
 
   const setLanguage = (lang) => {
-    setLanguageState(lang);
+    const next = LANGUAGE_OPTIONS.some((option) => option.value === lang) ? lang : 'en';
+    i18n.changeLanguage(next);
     try {
-      localStorage.setItem(STORAGE_KEY, lang);
+      localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore storage errors
     }
   };
 
-  const t = (text) => translate(text, language);
-
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
+  const value = useMemo(
+    () => ({
+      language,
+      setLanguage,
+      t,
+    }),
+    [language, t]
   );
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export const useLanguage = () => useContext(LanguageContext);
 
 export default LanguageContext;
-
-

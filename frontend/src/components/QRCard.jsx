@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
+import html2canvas from 'html2canvas';
 import { qrAPI } from '../services/api';
 import { FaDownload } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import FeedbackBanner from './ui/FeedbackBanner';
+import { getApiErrorMessage } from '../utils/apiError';
 
 function QRCard({ userId, userName }) {
   const { t } = useLanguage();
   const [qrValue, setQrValue] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     loadQRCode();
@@ -24,65 +29,84 @@ function QRCard({ userId, userName }) {
 
   const generateQRCode = async () => {
     setLoading(true);
+    setError('');
+    setSuccess('');
     try {
       const response = await qrAPI.generate(userId);
       setQrValue(response.data.qrCode);
+      setSuccess(t('QR code generated.'));
     } catch (error) {
       console.error('Error generating QR code:', error);
-      alert(t('Failed to generate QR code'));
+      setError(getApiErrorMessage(error, t('Failed to generate QR code')));
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadQR = () => {
-    const canvas = document.getElementById('qr-code');
-    if (canvas) {
-      const pngUrl = canvas
-        .toDataURL("image/png")
-        .replace("image/png", "image/octet-stream");
-      let downloadLink = document.createElement("a");
-      downloadLink.href = pngUrl;
-      downloadLink.download = `health-card-${userName}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+  const downloadQR = async () => {
+    const element = document.getElementById('qr-card');
+    if (!element) return;
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true
+      });
+      const link = document.createElement('a');
+      link.download = `patient_qr_${userId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      setSuccess(t('QR card downloaded.'));
+    } catch (error) {
+      console.error('Error downloading QR card:', error);
+      setError(getApiErrorMessage(error, t('Failed to download QR card. Please try again.')));
     }
   };
 
   return (
     <div className="card text-center">
-      <h3 className="text-2xl font-bold mb-4 text-gray-800">{t('Digital Health Card')}</h3>
-      
+      <FeedbackBanner message={error} variant="error" className="mb-3 text-left" />
+      <FeedbackBanner message={success} variant="success" className="mb-3 text-left" />
+      <h3 className="text-2xl font-bold mb-2 gradient-text">{t('Digital Health Card')}</h3>
+      <p className="mb-6 text-sm text-muted-fg">Your portable health identity for field visits</p>
+
       {qrValue ? (
         <div className="space-y-4">
-          <div className="bg-gray-50 p-6 rounded-lg inline-block">
-            {qrValue.startsWith('data:image') ? (
-              <img src={qrValue} alt="QR Code" className="w-48 h-48 mx-auto" />
-            ) : (
-              <QRCodeSVG
-                id="qr-code"
-                value={qrValue}
-                size={192}
-                level="H"
-                includeMargin={true}
-              />
-            )}
-          </div>
-          
-          <div className="text-left bg-green-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-700 mb-2">
-              <strong>{t('Name:')}</strong> {userName}
-            </p>
-            <p className="text-sm text-gray-700 mb-2">
-              <strong>{t('User ID:')}</strong> {userId}
-            </p>
-            <p className="text-xs text-gray-600">
-              {t('Share QR message')}
-            </p>
+          <div className="flex justify-center">
+            <div
+              id="qr-card"
+              className="w-full max-w-[320px] rounded-2xl border border-default bg-card-secondary px-6 py-5 text-center shadow-soft dark:shadow-dark-card"
+            >
+              <p className="border-b border-default pb-3 text-sm font-semibold text-brand-600 dark:text-brand-400">
+                Rural Health Assistance System
+              </p>
+              <div className="pt-3 pb-2 text-left text-sm text-fg-secondary">
+                <p><strong>Patient Name:</strong> {userName || '-'}</p>
+                <p><strong>Patient ID:</strong> {userId}</p>
+              </div>
+
+              <div className="my-3 flex justify-center">
+                {qrValue.startsWith('data:image') ? (
+                  <img src={qrValue} alt="QR Code" className="w-44 h-44 mx-auto" />
+                ) : (
+                  <QRCodeCanvas
+                    id="qr-code"
+                    value={qrValue}
+                    size={176}
+                    level="H"
+                    includeMargin={true}
+                  />
+                )}
+              </div>
+
+              <p className="border-t border-default pt-2 text-xs text-muted-fg">
+                Scan this QR to view patient profile
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 max-w-[420px] mx-auto">
             <button
               onClick={generateQRCode}
               disabled={loading}
@@ -95,7 +119,7 @@ function QRCard({ userId, userName }) {
               className="btn-primary flex-1 flex items-center justify-center space-x-2"
             >
               <FaDownload />
-              <span>{t('Download')}</span>
+              <span>Download QR</span>
             </button>
           </div>
         </div>

@@ -1,12 +1,16 @@
-import { Link } from 'react-router-dom';
-import { FaComments, FaQrcode, FaClipboardList, FaBell, FaUserNurse, FaChartLine } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+import { FaComments, FaQrcode, FaClipboardList, FaBell, FaUserNurse, FaChartLine, FaUserMd } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { getDashboardPath } from '../utils/navigation';
+import Section from '../components/marketing/Section.jsx';
+import MarketingCard from '../components/marketing/MarketingCard.jsx';
+import Footer from '../components/marketing/Footer.jsx';
+import Button from '../components/ui/Button.jsx';
 
 function Services({ user, userProfile }) {
   const { t } = useLanguage();
   const isLoggedIn = Boolean(user);
-  const dashboardPath = getDashboardPath(userProfile);
+  const dashboardPath = userProfile?.role ? getDashboardPath(userProfile) : null;
   const ctaPath = isLoggedIn ? dashboardPath : '/login';
   const ctaLabel = isLoggedIn ? t('Dashboard') : t('Login');
 
@@ -80,113 +84,113 @@ function Services({ user, userProfile }) {
   ];
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-gray-50">
-      <div className="container mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4 text-gray-800">
-          {t('Our Services')}
-        </h1>
-        <p className="text-center text-lg text-gray-600 mb-4 max-w-3xl mx-auto">
-          {t('Services intro')}
-        </p>
-        <p className="text-center text-base text-gray-500 mb-12 max-w-3xl mx-auto">
-          {t('Services Detailed Intro')}
-        </p>
+    <div className="min-h-screen marketing-bg">
+      <div className="mx-auto w-full max-w-7xl px-5 pt-10 sm:px-6 lg:px-8">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/70 px-3 py-1.5 text-xs font-semibold text-brand-700 shadow-soft backdrop-blur dark:border-white/10 dark:bg-slate-900/40 dark:text-brand-200">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-r from-brand-600 to-teal-500" />
+            {t('Our Services')}
+          </div>
+          <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-fg sm:text-5xl">
+            {t('Healthcare services that feel premium')}
+          </h1>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-fg-secondary sm:text-lg">
+            {t('Services Detailed Intro')}
+          </p>
+        </motion.div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <Section
+        eyebrow={t('Services intro')}
+        title={t('A complete care stack')}
+        subtitle={t('Modern card-first layouts, smooth interactions, and workflows tailored for villagers, ASHA workers, and doctors.')}
+      >
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => (
-            <div key={index} className="card hover:shadow-xl transition-shadow">
-              <div className="mb-4">
-                {service.icon}
+            <MarketingCard key={index} className="p-7" glow>
+              <div className="flex items-start justify-between gap-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600/15 to-teal-500/15 text-brand-700 ring-1 ring-brand-500/10 dark:text-brand-200">
+                  <div className="text-brand-600 dark:text-brand-200">{service.icon}</div>
+                </div>
+                <span className="rounded-full border border-default bg-card-secondary px-3 py-1 text-xs font-semibold text-fg-secondary">
+                  {t('Modern')}
+                </span>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-800">
-                {service.title}
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {service.description}
-              </p>
-              <ul className="space-y-2">
+
+              <h3 className="mt-5 text-lg font-semibold tracking-tight text-fg">{service.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg-secondary">{service.description}</p>
+
+              <ul className="mt-5 space-y-2">
                 {service.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="text-primary mr-2">✓</span>
-                    <span className="text-gray-700">{feature}</span>
+                  <li key={idx} className="flex items-start gap-2 text-sm text-fg-secondary">
+                    <span className="mt-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">
+                      ✓
+                    </span>
+                    <span className="leading-relaxed">{feature}</span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </MarketingCard>
           ))}
         </div>
+      </Section>
 
-        {/* Service Benefits Section */}
-        <div className="mt-16 mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-gray-800">
-            {t('Service Benefits Title')}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 1')}</p>
+      <Section
+        eyebrow={t('Service Benefits Title')}
+        title={t('Built for rural speed and safety')}
+        subtitle={t('Service Integration Description')}
+        className="bg-white/35 dark:bg-slate-950/15"
+      >
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <MarketingCard key={n} className="p-6" hover={false}>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">
+                  <FaChartLine className="h-4 w-4" />
+                </span>
+                <p className="text-sm leading-relaxed text-fg-secondary">{t(`Service Benefit ${n}`)}</p>
               </div>
-            </div>
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 2')}</p>
+            </MarketingCard>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        eyebrow={t('Ready to Access These Services?')}
+        title={t('Launch a premium dashboard experience')}
+        subtitle={t('Create your account today and start managing your health digitally')}
+        className="pb-10"
+      >
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-brand-700 via-brand-600 to-teal-500 p-[1px] shadow-card">
+          <div className="relative rounded-[2.5rem] bg-white/80 p-10 backdrop-blur dark:bg-slate-950/35 sm:p-12">
+            <div className="absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-brand-500/15 blur-3xl" />
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-teal-500/15 blur-3xl" />
+
+            <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-fg">{t('Premium healthcare platform')}</p>
+                <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-fg sm:text-4xl">{t('Ready to Get Started?')}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-fg-secondary sm:text-base">{t('Join thousands message')}</p>
               </div>
-            </div>
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 3')}</p>
-              </div>
-            </div>
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 4')}</p>
-              </div>
-            </div>
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 5')}</p>
-              </div>
-            </div>
-            <div className="card hover:shadow-lg transition">
-              <div className="flex items-start space-x-3">
-                <span className="text-primary text-xl font-bold">✓</span>
-                <p className="text-gray-700">{t('Service Benefit 6')}</p>
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <Button
+                  to={ctaPath || undefined}
+                  size="lg"
+                  className="w-full sm:w-auto"
+                  disabled={isLoggedIn && !ctaPath}
+                >
+                  {ctaLabel}
+                </Button>
+                <Button to="/contact" variant="outline" size="lg" className="w-full sm:w-auto">
+                  {t('Contact')}
+                </Button>
               </div>
             </div>
           </div>
         </div>
+      </Section>
 
-        {/* How Services Work Together */}
-        <div className="mt-12 mb-12 bg-gradient-to-br from-primary/10 to-green-600/10 rounded-lg p-8 md:p-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-6 text-gray-800">
-            {t('How Services Work Title')}
-          </h2>
-          <p className="text-lg text-gray-700 text-center max-w-4xl mx-auto leading-relaxed">
-            {t('Service Integration Description')}
-          </p>
-        </div>
-
-        {/* CTA Section */}
-        <div className="mt-16 bg-gradient-to-r from-primary to-green-600 rounded-lg p-8 md:p-12 text-white text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            {t('Ready to Access These Services?')}
-          </h2>
-          <p className="text-lg mb-6 text-green-100">
-            {t('Create your account today and start managing your health digitally')}
-          </p>
-          <Link
-            to={ctaPath}
-            className="inline-block bg-white text-primary px-8 py-3 rounded-lg hover:bg-green-100 transition font-semibold text-lg"
-          >
-            {ctaLabel}
-          </Link>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }

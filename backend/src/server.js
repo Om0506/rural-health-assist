@@ -11,6 +11,14 @@ import flagRouter from './routes/flag.js';
 import qrRouter from './routes/qr.js';
 import notificationsRouter from './routes/notifications.js';
 import villagerProfileRouter from './routes/villagerProfile.js';
+import chatbotRouter from './routes/chatbot.js';
+import villagesRouter from './routes/villages.js';
+import medicineRouter from './routes/medicine.js';
+import visitsRouter from './routes/visits.js';
+import doctorRouter from './routes/doctor.js';
+import historyRouter from './routes/history.js';
+import documentsRouter from './routes/documents.js';
+import casesRouter from './routes/cases.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +32,14 @@ app.use('/api/flag', flagRouter);
 app.use('/api/qr', qrRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/villager-profile', villagerProfileRouter);
+app.use('/api/chatbot', chatbotRouter);
+app.use('/api/villages', villagesRouter);
+app.use('/api/medicine', medicineRouter);
+app.use('/api/visits', visitsRouter);
+app.use('/api/doctor', doctorRouter);
+app.use('/api/history', historyRouter);
+app.use('/api/documents', documentsRouter);
+app.use('/api/cases', casesRouter);
 
 app.get('/api', (req, res) => {
   res.json({ message: 'Rural Healthcare API is running' });

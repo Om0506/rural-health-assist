@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { motion } from 'framer-motion';
 import { auth } from '../utils/firebase';
-import { userAPI } from '../services/api';
-import { FaUser, FaEnvelope, FaLock, FaPhone, FaUserTag } from 'react-icons/fa';
+import { userAPI, villageAPI } from '../services/api';
+import { FaUser, FaEnvelope, FaLock, FaPhone, FaUserTag, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import AuthLayout from '../components/layout/AuthLayout';
+import Input, { Select } from '../components/ui/Input';
+import Button from '../components/ui/Button';
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -14,18 +18,31 @@ function Register() {
     confirmPassword: '',
     age: '',
     phone: '',
-    role: 'Villager'
+    role: 'Villager',
+    village_id: '',
+    worker_id: '',
   });
+  const [villages, setVillages] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
 
+  useEffect(() => {
+    const loadVillages = async () => {
+      try {
+        const response = await villageAPI.getAll();
+        setVillages(response.data || []);
+      } catch {
+        setVillages([]);
+      }
+    };
+    loadVillages();
+  }, []);
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
@@ -45,18 +62,16 @@ function Register() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
 
       await userAPI.register({
         name: formData.name,
-        age: parseInt(formData.age),
+        age: parseInt(formData.age, 10),
         role: formData.role,
         phone: formData.phone,
-        email: formData.email
+        email: formData.email,
+        village_id: formData.village_id || null,
+        worker_id: formData.worker_id || null,
       });
 
       switch (formData.role) {
@@ -64,17 +79,18 @@ function Register() {
           navigate('/dashboard/villager');
           break;
         case 'ASHA Worker':
+        case 'ASHA':
           navigate('/dashboard/asha');
           break;
         case 'Doctor':
-          navigate('/dashboard/doctor');
+          navigate('/doctor-dashboard');
           break;
         default:
           navigate('/');
       }
-    } catch (error) {
-      console.error('Registration error:', error);
-      if (error.code === 'auth/email-already-in-use') {
+    } catch (err) {
+      console.error('Registration error:', err);
+      if (err.code === 'auth/email-already-in-use') {
         setError(t('Email already in use. Please use a different email or login.'));
       } else {
         setError(t('Registration failed. Please try again.'));
@@ -85,181 +101,156 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-primary to-green-600">
-      <div className="card max-w-2xl w-full">
-        <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
-          {t('Create Account')}
-        </h1>
-        <p className="text-center text-gray-600 mb-8">
-          {t('Join our healthcare community today')}
-        </p>
+    <AuthLayout
+      title={t('Create Account')}
+      subtitle={t('Join our healthcare community today')}
+    >
+      {error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm"
+          role="alert"
+        >
+          {error}
+        </motion.div>
+      )}
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="name" className="block text-gray-700 font-semibold mb-2">
-                {t('Full Name')} *
-              </label>
-              <div className="relative">
-                <FaUser className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="input-field pl-10"
-                  placeholder={t('Your full name')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-gray-700 font-semibold mb-2">
-                {t('Email Address')} *
-              </label>
-              <div className="relative">
-                <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="input-field pl-10"
-                  placeholder={t('your.email@example.com')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="age" className="block text-gray-700 font-semibold mb-2">
-                {t('Age')} *
-              </label>
-              <input
-                type="number"
-                id="age"
-                name="age"
-                value={formData.age}
-                onChange={handleChange}
-                required
-                min="1"
-                max="120"
-                className="input-field"
-                placeholder={t('Your age')}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="phone" className="block text-gray-700 font-semibold mb-2">
-                {t('Phone Number')} *
-              </label>
-              <div className="relative">
-                <FaPhone className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  required
-                  className="input-field pl-10"
-                  placeholder={t('Your phone number')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="role" className="block text-gray-700 font-semibold mb-2">
-              {t('Select Your Role')} *
-            </label>
-            <div className="relative">
-              <FaUserTag className="absolute left-3 top-3 text-gray-400" />
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                required
-                className="input-field pl-10"
-              >
-                <option value="Villager">{t('Villager')}</option>
-                <option value="ASHA Worker">{t('ASHA Worker')}</option>
-                <option value="Doctor">{t('Doctor')}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="password" className="block text-gray-700 font-semibold mb-2">
-                {t('Password')} *
-              </label>
-              <div className="relative">
-                <FaLock className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="input-field pl-10"
-                  placeholder={t('At least 6 characters')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-gray-700 font-semibold mb-2">
-                {t('Confirm Password')} *
-              </label>
-              <div className="relative">
-                <FaLock className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="input-field pl-10"
-                  placeholder={t('Re-enter password')}
-                />
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? t('Creating Account...') : t('Register')}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">
-            {t('Already have an account?')}{' '}
-            <Link to="/login" className="text-primary font-semibold hover:underline">
-              {t('Login here')}
-            </Link>
-          </p>
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label={`${t('Full Name')} *`}
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            icon={FaUser}
+            placeholder={t('Your full name')}
+          />
+          <Input
+            label={`${t('Email Address')} *`}
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            icon={FaEnvelope}
+            placeholder={t('your.email@example.com')}
+          />
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label={`${t('Age')} *`}
+            type="number"
+            name="age"
+            value={formData.age}
+            onChange={handleChange}
+            required
+            min="1"
+            max="120"
+            placeholder={t('Your age')}
+          />
+          <Input
+            label={`${t('Phone Number')} *`}
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            required
+            icon={FaPhone}
+            placeholder={t('Your phone number')}
+          />
+        </div>
+
+        <Select
+          label={`${t('Select Your Role')} *`}
+          name="role"
+          value={formData.role}
+          onChange={handleChange}
+          required
+        >
+          <option value="Villager">{t('Villager')}</option>
+          <option value="ASHA">{t('ASHA Worker')}</option>
+          <option value="Doctor">{t('Doctor')}</option>
+        </Select>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Village"
+            name="village_id"
+            value={formData.village_id}
+            onChange={handleChange}
+            required={formData.role === 'Villager'}
+          >
+            <option value="">Select village</option>
+            {villages.map((village) => (
+              <option key={village.id} value={village.id}>
+                {village.village_name}
+              </option>
+            ))}
+          </Select>
+
+          {formData.role === 'ASHA' && (
+            <Input
+              label="ASHA Worker ID"
+              name="worker_id"
+              value={formData.worker_id}
+              onChange={handleChange}
+              placeholder="ASHA-001"
+              required
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="relative">
+            <Input
+              label={`${t('Password')} *`}
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              icon={FaLock}
+              placeholder={t('At least 6 characters')}
+              className="!pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 bottom-3 text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Toggle password"
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+          <Input
+            label={`${t('Confirm Password')} *`}
+            type="password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required
+            icon={FaLock}
+            placeholder={t('Re-enter password')}
+          />
+        </div>
+
+        <Button type="submit" loading={loading} className="w-full sticky bottom-0">
+          {loading ? t('Creating Account...') : t('Register')}
+        </Button>
+      </form>
+
+      <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+        <p className="text-slate-600 text-sm">
+          {t('Already have an account?')}{' '}
+          <Link to="/login" className="text-brand-600 font-semibold hover:underline">
+            {t('Login here')}
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

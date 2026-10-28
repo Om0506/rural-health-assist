@@ -3,13 +3,17 @@ export const getDashboardPath = (userProfile) => {
     return '/';
   }
 
-  switch (userProfile.role) {
+  const role = String(userProfile.role).trim().toLowerCase();
+
+  switch (role) {
     case 'Villager':
+    case 'villager':
       return '/dashboard/villager';
-    case 'ASHA Worker':
+    case 'asha worker':
+    case 'asha':
       return '/dashboard/asha';
-    case 'Doctor':
-      return '/dashboard/doctor';
+    case 'doctor':
+      return '/doctor-dashboard';
     default:
       return '/';
   }

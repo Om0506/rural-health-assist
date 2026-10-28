@@ -6,6 +6,80 @@ import { canAccessUserData } from '../middleware/authorization.js';
 
 const router = express.Router();
 
+router.post('/resolve', authenticateUser, async (req, res) => {
+  try {
+    const { qrData } = req.body;
+
+    if (!qrData || typeof qrData !== 'string') {
+      return res.status(400).json({ error: 'qrData is required' });
+    }
+
+    let patientId = null;
+    const trimmedData = qrData.trim();
+
+    try {
+      const parsed = JSON.parse(trimmedData);
+      patientId = parsed.patient_id || parsed.userId || null;
+      if (!patientId && typeof parsed.profile_url === 'string') {
+        const match = parsed.profile_url.match(/^\/patient\/(\d+)$/);
+        if (match) patientId = Number(match[1]);
+      }
+    } catch {
+      const routeMatch = trimmedData.match(/^\/patient\/(\d+)$/);
+      if (routeMatch) {
+        patientId = Number(routeMatch[1]);
+      } else if (/^\d+$/.test(trimmedData)) {
+        patientId = Number(trimmedData);
+      }
+    }
+
+    if (!patientId || Number.isNaN(Number(patientId))) {
+      return res.status(400).json({ error: 'Unable to resolve patient from QR data' });
+    }
+
+    const currentUserResult = await query(
+      'SELECT id, role FROM users WHERE firebase_uid = $1',
+      [req.user.uid]
+    );
+
+    if (!currentUserResult.rows.length) {
+      return res.status(404).json({ error: 'Current user not found' });
+    }
+
+    const currentUser = currentUserResult.rows[0];
+    const normalizedRole = currentUser.role === 'ASHA Worker' ? 'ASHA' : currentUser.role;
+    const isCaregiver = normalizedRole === 'ASHA' || normalizedRole === 'Doctor';
+
+    if (!isCaregiver && currentUser.id !== Number(patientId)) {
+      return res.status(403).json({ error: 'Access denied for scanned patient' });
+    }
+
+    const patientResult = await query(
+      `SELECT u.id, u.name, u.phone, u.age, u.role, v.village_name
+       FROM users u
+       LEFT JOIN villages v ON v.id = u.village_id
+       WHERE u.id = $1`,
+      [patientId]
+    );
+
+    if (!patientResult.rows.length) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    res.json({
+      patient: patientResult.rows[0],
+      actions: {
+        profile: `/patient/${Number(patientId)}`,
+        dailyVisit: `/asha/daily-visits?patientId=${Number(patientId)}`,
+        medicineLog: `/asha/medicine-log?patientId=${Number(patientId)}`
+      }
+    });
+  } catch (error) {
+    console.error('Error resolving QR data:', error);
+    res.status(500).json({ error: 'Failed to resolve QR data' });
+  }
+});
+
 router.post('/generate', authenticateUser, async (req, res) => {
   try {
     const { userId } = req.body;
@@ -28,6 +102,7 @@ router.post('/generate', authenticateUser, async (req, res) => {
     const currentUser = currentUserResult.rows[0];
     const isAuthorized = 
       currentUser.role === 'ASHA Worker' || 
+      currentUser.role === 'ASHA' || 
       currentUser.role === 'Doctor' || 
       currentUser.id.toString() === userId.toString();
 
@@ -73,7 +148,8 @@ router.post('/generate', authenticateUser, async (req, res) => {
 
     const qrPayload = {
       type: 'RHA_HEALTH_CARD',
-      userId: Number(userId),
+      patient_id: Number(userId),
+      profile_url: `/patient/${Number(userId)}`,
       name: targetUserResult.rows[0].name,
       phone: targetUserResult.rows[0].phone,
       generatedAt: new Date().toISOString()
