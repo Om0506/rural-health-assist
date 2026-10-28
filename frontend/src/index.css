@@ -570,6 +570,14 @@
     @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-default bg-card-secondary transition hover:bg-hover;
   }
 
+  .assistant-chat-mic {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-default bg-card-secondary text-teal-600 transition hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700 dark:text-teal-400 dark:hover:bg-teal-950/40;
+  }
+
+  .assistant-chat-mic--active {
+    @apply border-rose-400 bg-rose-50 text-rose-600 animate-pulse dark:bg-rose-950/50 dark:text-rose-400;
+  }
+
   .assistant-chat-input {
     @apply h-11 flex-1 rounded-full border border-default bg-card-secondary px-4 text-sm text-fg focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/15;
   }

@@ -10,11 +10,18 @@ import {
   FaTimes,
   FaTrash,
   FaUser,
+  FaMicrophone,
+  FaMagic,
+  FaVolumeUp,
+  FaVolumeMute,
+  FaStop,
 } from 'react-icons/fa';
 import { chatbotAPI } from '../services/api';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { cn } from '../utils/cn';
 import SymptomSummaryPanel from './chatbot/SymptomSummaryPanel.jsx';
+import VoiceChatOverlay from './chatbot/VoiceChatOverlay.jsx';
+import { useVoiceChat } from '../hooks/useVoiceChat';
 import { detectLanguageFromText } from '../utils/i18nHealthcare';
 import { fromApiLanguage, toApiLanguage } from '../i18n';
 
@@ -78,9 +85,49 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteError, setDeleteError] = useState('');
   const [deletingSessionId, setDeletingSessionId] = useState(null);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [autoSendEnabled, setAutoSendEnabled] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const handleSendRef = useRef(null);
+  const speakRef = useRef(null);
+  const soundEnabledRef = useRef(true);
+
+  const {
+    isSupported: isVoiceSupported,
+    isListening,
+    isSpeaking,
+    speakingMessageId,
+    soundEnabled,
+    transcript,
+    interimTranscript,
+    volumeLevel,
+    error: voiceError,
+    startListening,
+    stopListening,
+    clearTranscript,
+    setTranscript,
+    speak,
+    stopSpeaking,
+    toggleSound,
+  } = useVoiceChat({
+    language: selectedLanguage,
+    autoSendEnabled,
+    onAutoSend: (text) => {
+      setIsVoiceOpen(false);
+      handleSendRef.current?.(text);
+      clearTranscript();
+    },
+  });
+
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   const makeGreeting = useCallback(
     () => ({
@@ -290,15 +337,34 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
     const messageLanguage = toApiLanguage(detectedUiLanguage);
     if (messageLanguage !== selectedLanguage) setSelectedLanguage(messageLanguage);
 
-    if (!sessionId) {
+    let currentSessionId = sessionId;
+    if (!currentSessionId && userId) {
+      try {
+        const createRes = await chatbotAPI.createSession({
+          userId,
+          language: messageLanguage || selectedLanguage,
+        });
+        currentSessionId = createRes?.data?.session_id;
+        if (currentSessionId) {
+          setSessionId(currentSessionId);
+          await refreshSessions();
+        }
+      } catch (err) {
+        console.error('Failed to auto-create chat session:', err);
+      }
+    }
+
+    if (!currentSessionId) {
       setMessages((prev) => [
         ...prev,
         {
+          id: `user-${Date.now()}`,
           text: outgoingText,
           sender: 'user',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
         {
+          id: `sys-${Date.now()}`,
           text: t('Please tap "New Chat" to start a health assessment conversation.'),
           sender: 'system',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -308,7 +374,11 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       return;
     }
 
+    stopSpeaking();
+
+    const userMessageId = `user-${Date.now()}`;
     const userMessage = {
+      id: userMessageId,
       text: outgoingText,
       sender: 'user',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -320,7 +390,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
     try {
       const response = await chatbotAPI.sendMessage({
         userId,
-        sessionId,
+        sessionId: currentSessionId,
         message: outgoingText,
         language: messageLanguage,
       });
@@ -342,7 +412,9 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       const severityLabel =
         data.triage_label || data.severity_label || (data.severity ? formatSeverityLabel(data.severity) : null);
 
+      const botMessageId = `bot-${Date.now()}`;
       const botMessage = {
+        id: botMessageId,
         text: botReply,
         sender: 'bot',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -352,6 +424,10 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       };
       setMessages((prev) => [...prev, botMessage]);
       await refreshSessions();
+
+      if (soundEnabledRef.current && speakRef.current) {
+        speakRef.current(botReply, messageLanguage, botMessageId);
+      }
     } catch (error) {
       console.error('Error sending chatbot message:', error);
       const errMsg =
@@ -360,6 +436,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       setMessages((prev) => [
         ...prev,
         {
+          id: `err-${Date.now()}`,
           text: errMsg,
           sender: 'system',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -369,6 +446,10 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
       setIsTyping(false);
     }
   };
+
+  useEffect(() => {
+    handleSendRef.current = handleSend;
+  });
 
   const handleEscalationConsent = async (consent) => {
     if (!userId || !sessionId || !escalationRequest) return;
@@ -531,7 +612,7 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
   );
 
   const messageArea = (
-    <div className={cn('flex flex-1 flex-col min-h-0', !isAssistant && 'flex-col')}>
+    <div className={cn('relative flex flex-1 flex-col min-h-0', !isAssistant && 'flex-col')}>
       <div
         className={cn(
           isAssistant
@@ -569,6 +650,34 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
                 {t('Preliminary health support — not a diagnosis. Consult ASHA or doctor if needed.')}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsVoiceOpen(true);
+                startListening();
+              }}
+              className="flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700 transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300"
+              title={t('Voice Chat', { defaultValue: 'Voice Chat' })}
+              aria-label="Open voice chat"
+            >
+              <FaMagic className="h-3 w-3 text-teal-600 dark:text-teal-400" />
+              <span className="hidden sm:inline">{t('Live Voice', { defaultValue: 'Live Voice' })}</span>
+              <FaMicrophone className="h-3 w-3 text-teal-600 sm:hidden dark:text-teal-400" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleSound}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded-full border transition',
+                soundEnabled
+                  ? 'border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-300'
+                  : 'border-default bg-card-secondary text-muted-fg hover:text-fg'
+              )}
+              title={soundEnabled ? t('Mute spoken responses', { defaultValue: 'Mute spoken responses' }) : t('Unmute spoken responses', { defaultValue: 'Unmute spoken responses' })}
+              aria-label={soundEnabled ? 'Mute spoken responses' : 'Unmute spoken responses'}
+            >
+              {soundEnabled ? <FaVolumeUp className="h-3 w-3" /> : <FaVolumeMute className="h-3 w-3" />}
+            </button>
             <select
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value)}
@@ -594,11 +703,37 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
               <h3 className="font-bold">{t('Health Assistant')}</h3>
               <p className="text-xs text-green-100">{t('Online - Ask me anything')}</p>
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsVoiceOpen(true);
+                  startListening();
+                }}
+                className="flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
+                title={t('Voice Chat', { defaultValue: 'Voice Chat' })}
+                aria-label="Open voice chat"
+              >
+                <FaMagic className="h-3 w-3" />
+                <span className="hidden sm:inline">{t('Live Voice', { defaultValue: 'Live Voice' })}</span>
+                <FaMicrophone className="h-3 w-3 sm:hidden" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleSound}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20',
+                  !soundEnabled && 'opacity-60'
+                )}
+                title={soundEnabled ? t('Mute spoken responses', { defaultValue: 'Mute spoken responses' }) : t('Unmute spoken responses', { defaultValue: 'Unmute spoken responses' })}
+                aria-label={soundEnabled ? 'Mute spoken responses' : 'Unmute spoken responses'}
+              >
+                {soundEnabled ? <FaVolumeUp className="h-3 w-3" /> : <FaVolumeMute className="h-3 w-3" />}
+              </button>
               <select
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="rounded-lg border-0 bg-white/15 px-2 py-1 text-xs text-white backdrop-blur"
+                className="rounded-lg border-0 bg-white/15 px-2 py-1 text-xs text-white backdrop-blur [&>option]:text-black"
               >
                 <option value="English">English</option>
                 <option value="Hindi">Hindi</option>
@@ -677,7 +812,44 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
                       </div>
                     )}
                   </div>
-                  <p className="mt-1 px-1 text-[10px] text-muted-fg">{message.time}</p>
+                  <div className="mt-1 flex items-center justify-between gap-2 px-1 text-[10px] text-muted-fg">
+                    <span>{message.time}</span>
+                    {message.sender === 'bot' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isSpeaking && speakingMessageId === message.id) {
+                            stopSpeaking();
+                          } else {
+                            speak(message.text, selectedLanguage, message.id);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] text-muted-fg transition hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950/40 dark:hover:text-brand-300"
+                        title={
+                          isSpeaking && speakingMessageId === message.id
+                            ? t('Stop speaking', { defaultValue: 'Stop speaking' })
+                            : t('Listen to message', { defaultValue: 'Listen to message' })
+                        }
+                        aria-label={
+                          isSpeaking && speakingMessageId === message.id
+                            ? 'Stop speaking'
+                            : 'Listen to message'
+                        }
+                      >
+                        {isSpeaking && speakingMessageId === message.id ? (
+                          <>
+                            <FaStop className="h-2.5 w-2.5 text-rose-500 animate-pulse" />
+                            <span className="font-medium text-rose-500">{t('Stop', { defaultValue: 'Stop' })}</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaVolumeUp className="h-2.5 w-2.5" />
+                            <span>{t('Listen', { defaultValue: 'Listen' })}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -751,6 +923,26 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
               <FaPaperclip className="h-4 w-4 text-muted-fg" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              setIsVoiceOpen(true);
+              if (!isListening) startListening();
+            }}
+            className={cn(
+              isAssistant
+                ? 'assistant-chat-mic'
+                : 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-default bg-card-secondary text-teal-600 hover:border-teal-400 hover:bg-teal-50 dark:text-teal-400',
+              isListening &&
+                (isAssistant
+                  ? 'assistant-chat-mic--active'
+                  : 'border-rose-400 bg-rose-50 text-rose-600 animate-pulse')
+            )}
+            title={t('Voice Chat', { defaultValue: 'Voice Chat' })}
+            aria-label="Open voice chat"
+          >
+            <FaMicrophone className="h-4 w-4" />
+          </button>
           <input
             ref={inputRef}
             type="text"
@@ -782,6 +974,37 @@ function Chatbot({ userId, variant = 'default', focusRequest = 0 }) {
           </p>
         )}
       </div>
+
+      <VoiceChatOverlay
+        isOpen={isVoiceOpen}
+        onClose={() => {
+          setIsVoiceOpen(false);
+          stopListening();
+        }}
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={(newLang) => {
+          setSelectedLanguage(newLang);
+        }}
+        isListening={isListening}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
+        volumeLevel={volumeLevel}
+        transcript={transcript}
+        interimTranscript={interimTranscript}
+        error={voiceError}
+        onStartListening={startListening}
+        onStopListening={stopListening}
+        onClearTranscript={clearTranscript}
+        onEditTranscript={(newText) => setTranscript(newText)}
+        onSendTranscript={(text) => {
+          setIsVoiceOpen(false);
+          handleSend(text);
+          clearTranscript();
+        }}
+        autoSendEnabled={autoSendEnabled}
+        onToggleAutoSend={setAutoSendEnabled}
+        t={t}
+      />
     </div>
   );
 
